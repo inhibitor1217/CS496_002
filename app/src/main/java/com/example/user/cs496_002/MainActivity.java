@@ -23,8 +23,8 @@ public class MainActivity extends AppCompatActivity {
         viewPager = (ViewPager) findViewById(R.id.pager);
         TabPagerAdapter adapter = new TabPagerAdapter(getSupportFragmentManager());
 
-        adapter.addFragment(new TabFragment1(), "TAB A");
-        adapter.addFragment(new TabFragment2(), "TAB B");
+        adapter.addFragment(new TabFragment1(), "연락처");
+        adapter.addFragment(new TabFragment2(), "사진첩");
         adapter.addFragment(new TabFragment3(), "TAB C");
 
         viewPager.setAdapter(adapter);
