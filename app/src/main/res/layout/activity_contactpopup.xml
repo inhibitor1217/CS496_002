@@ -4,6 +4,55 @@
     android:layout_height="match_parent"
     android:orientation="vertical">
 
+    <ImageView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:paddingVertical="80dp"
+        android:src="@mipmap/icon_person"
+        android:id="@+id/popup_image"/>
 
+    <GridLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:columnCount="2">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:paddingVertical="10dp"
+            android:paddingLeft="10dp"
+            android:paddingRight="30dp"
+            android:layout_gravity="center_vertical"
+            android:textSize="15dp"
+            android:text="이름"/>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_vertical"
+            android:padding="10dp"
+            android:textSize="20dp"
+            android:id="@+id/popup_text_name"/>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:paddingVertical="10dp"
+            android:paddingLeft="10dp"
+            android:paddingRight="30dp"
+            android:layout_gravity="center_vertical"
+            android:textSize="15dp"
+            android:text="연락처"/>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_vertical"
+            android:padding="10dp"
+            android:textSize="20dp"
+            android:id="@+id/popup_text_phone"/>
+
+    </GridLayout>
 
 </LinearLayout>

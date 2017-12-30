@@ -1,6 +1,7 @@
 package com.example.user.cs496_002;
 
 import android.content.Context;
+import android.content.Intent;
 import android.os.Bundle;
 import android.support.annotation.Nullable;
 import android.support.design.widget.FloatingActionButton;
@@ -24,6 +25,7 @@ import android.widget.Toast;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 
 public class TabFragment1 extends Fragment {
 
@@ -121,45 +123,38 @@ public class TabFragment1 extends Fragment {
             }
         });
 
+        // TODO
+        // get contact information from local repository and facebook server, and pass it here
+
+        // remove dummy array when finished
+        final HashMap<String, String> contact_list = new HashMap<>();
+        contact_list.put("김경훈", "010-1111-1111");
+        contact_list.put("김유현", "010-2222-2222");
+        contact_list.put("남휘종", "010-3333-3333");
+        contact_list.put("신아영", "010-4444-4444");
+        contact_list.put("오현민", "010-5555-5555");
+        contact_list.put("장동민", "010-6666-6666");
+        contact_list.put("하연주", "010-7777-7777");
+        contact_list.put("최연승", "010-8888-8888");
+        contact_list.put("유수진", "010-9999-9999");
+
+        ArrayList<String> name_list = new ArrayList<>(contact_list.keySet());
+
         listView = (ListView) returnView.findViewById(R.id.listview_contact);
+
+        adapter = new CustomViewAdapter(getActivity(), R.layout.listview_item, name_list);
+        listView.setAdapter(adapter);
 
         // creates new popup activity when item is clicked by user
         listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
             public void onItemClick(AdapterView<?> adapterView, View view, int i, long l) {
-
+                Intent intent = new Intent(getActivity(), ContactPopUpAcitivity.class);
+                intent.putExtra("name", (String) adapterView.getAdapter().getItem(i));
+                intent.putExtra("phone", contact_list.get(adapterView.getAdapter().getItem(i)));
+                startActivity(intent);
             }
         });
-
-        // TODO
-        // get contact information from local repository and facebook server, and pass it here
-
-        // remove dummy array when finished
-        ArrayList<Pair<String, String>> contact_list = new ArrayList<>();
-        contact_list.add(Pair.create("김경훈", "010-1111-1111"));
-        contact_list.add(Pair.create("김유현", "010-2222-2222"));
-        contact_list.add(Pair.create("남휘종", "010-3333-3333"));
-        contact_list.add(Pair.create("신아영", "010-4444-4444"));
-        contact_list.add(Pair.create("오현민", "010-5555-5555"));
-        contact_list.add(Pair.create("장동민", "010-6666-6666"));
-        contact_list.add(Pair.create("하연주", "010-7777-7777"));
-        contact_list.add(Pair.create("최연승", "010-8888-8888"));
-        contact_list.add(Pair.create("유수진", "010-9999-9999"));
-
-        Collections.sort(contact_list, new Comparator<Pair<String, String>>() {
-            @Override
-            public int compare(Pair<String, String> t1, Pair<String, String> t2) {
-                return t1.first.compareTo(t2.first);
-            }
-        });
-
-        ArrayList<String> name_list = new ArrayList<>();
-        for(Pair<String, String> person: contact_list) {
-            name_list.add(person.first);
-        }
-
-        adapter = new CustomViewAdapter(getActivity(), R.layout.listview_item, name_list);
-        listView.setAdapter(adapter);
 
         return returnView;
 

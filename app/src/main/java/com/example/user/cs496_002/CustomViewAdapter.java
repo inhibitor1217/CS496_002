@@ -3,17 +3,15 @@ package com.example.user.cs496_002;
 
 import android.content.Context;
 import android.support.annotation.NonNull;
-import android.text.Layout;
-import android.util.Pair;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.ArrayAdapter;
 import android.widget.BaseAdapter;
 import android.widget.ImageView;
 import android.widget.TextView;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 public class CustomViewAdapter extends BaseAdapter {
@@ -28,6 +26,8 @@ public class CustomViewAdapter extends BaseAdapter {
         this.filtered = objects;
         this.dataset = new ArrayList<>();
         dataset.addAll(filtered);
+        Collections.sort(dataset);
+        filter("");
     }
 
 
