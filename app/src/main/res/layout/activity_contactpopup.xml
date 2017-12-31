@@ -53,6 +53,42 @@
             android:textSize="20dp"
             android:id="@+id/popup_text_phone"/>
 
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:paddingVertical="10dp"
+            android:paddingLeft="10dp"
+            android:paddingRight="30dp"
+            android:layout_gravity="center_vertical"
+            android:textSize="15dp"
+            android:text="이메일"/>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_vertical"
+            android:padding="10dp"
+            android:textSize="20dp"
+            android:id="@+id/popup_text_email"/>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:paddingVertical="10dp"
+            android:paddingLeft="10dp"
+            android:paddingRight="30dp"
+            android:layout_gravity="center_vertical"
+            android:textSize="15dp"
+            android:text="페이스북"/>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_vertical"
+            android:padding="10dp"
+            android:textSize="20dp"
+            android:id="@+id/popup_text_facebook"/>
+
     </GridLayout>
 
 </LinearLayout>
