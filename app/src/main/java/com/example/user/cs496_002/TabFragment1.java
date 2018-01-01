@@ -1,7 +1,9 @@
 package com.example.user.cs496_002;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.database.Cursor;
 import android.os.AsyncTask;
@@ -31,6 +33,7 @@ import org.apache.http.HttpResponse;
 import org.apache.http.NameValuePair;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
+import org.apache.http.client.methods.HttpDelete;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.client.methods.HttpPut;
@@ -65,6 +68,8 @@ public class TabFragment1 extends Fragment {
 
     private CustomViewAdapter adapter;
 
+    private int updateCounter, updateMax;
+
     @Nullable
     @Override
     public View onCreateView(LayoutInflater inflater, @Nullable ViewGroup container, Bundle savedInstanceState) {
@@ -78,12 +83,15 @@ public class TabFragment1 extends Fragment {
             @Override
             public void onClick(View view) {
                 // TODO
-                // (done) retrieve contact information from local device
+                // retrieve contact information from local device
                 HashMap<String, Contact> localContact = readContactFromLocal();
 
-                // (done) upload information to server and synchronize
+                updateCounter = 0;
+                updateMax = localContact.size();
+
+                // upload information to server and synchronize
                 for(Map.Entry<String, Contact> entry: localContact.entrySet()) {
-                    updateToServer(entry.getKey(), entry.getValue());
+                    updateContactToServer(entry.getKey(), entry.getValue());
                 }
 
             }
@@ -176,11 +184,34 @@ public class TabFragment1 extends Fragment {
             @Override
             public void onItemClick(AdapterView<?> adapterView, View view, int i, long l) {
                 Intent intent = new Intent(getActivity(), ContactPopUpAcitivity.class);
-                intent.putExtra("name", (String) adapterView.getAdapter().getItem(i));
-                intent.putExtra("phone", contact_list.get(adapterView.getAdapter().getItem(i)).phone);
-                intent.putExtra("email", contact_list.get(adapterView.getAdapter().getItem(i)).email);
-                intent.putExtra("facebook", contact_list.get(adapterView.getAdapter().getItem(i)).facebook);
+                String name = (String) adapterView.getAdapter().getItem(i);
+                intent.putExtra("name", name);
+                intent.putExtra("phone", contact_list.get(name).phone);
+                intent.putExtra("email", contact_list.get(name).email);
+                intent.putExtra("facebook", contact_list.get(name).facebook);
                 startActivity(intent);
+            }
+        });
+
+        // deletes contact from server when item is long-clicked
+        listView.setOnItemLongClickListener(new AdapterView.OnItemLongClickListener() {
+            @Override
+            public boolean onItemLongClick(final AdapterView<?> adapterView, View view, final int i, long l) {
+                AlertDialog.Builder del_btn = new AlertDialog.Builder(getActivity());
+                del_btn.setMessage("연락처를 삭제하시겠습니까?").setCancelable(false).setPositiveButton("확인",
+                        new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface dialogInterface, int j) {
+                                String name = (String) adapterView.getAdapter().getItem(i);
+                                new FindByNameAndContinueTask(name, contact_list.get(name), FindByNameAndContinueTask.DELETE).execute();
+                            };
+                        }).setNegativeButton("취소", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialogInterface, int j) {
+                    }
+                });
+                del_btn.show();
+                return true;
             }
         });
 
@@ -244,10 +275,10 @@ public class TabFragment1 extends Fragment {
 
     }
 
-    public void updateToServer(String name, Contact contact) {
+    public void updateContactToServer(String name, Contact contact) {
 
         if(MainActivity.INTERNET_ALLOWED) {
-            new CheckNameAndUpdateTask(name, contact).execute();
+            new FindByNameAndContinueTask(name, contact, FindByNameAndContinueTask.POST_OR_UPDATE).execute();
         } else {
             Toast.makeText(getActivity(), "서버 접속을 위해 [설정]>[애플리케이션 관리]에서 인터넷 접속 권한을 활성화 해주세요.", Toast.LENGTH_SHORT).show();
         }
@@ -262,14 +293,19 @@ public class TabFragment1 extends Fragment {
         }
     }
 
-    private class CheckNameAndUpdateTask extends AsyncTask {
+    private class FindByNameAndContinueTask extends AsyncTask {
 
         private String mName;
         private Contact mContact;
+        private int next;
 
-        public CheckNameAndUpdateTask(String name, Contact contact) {
+        public static final int POST_OR_UPDATE = 1;
+        public static final int DELETE = 2;
+
+        public FindByNameAndContinueTask(String name, Contact contact, int next) {
             this.mName = name;
             this.mContact = contact;
+            this.next = next;
         }
 
         @Override
@@ -321,12 +357,20 @@ public class TabFragment1 extends Fragment {
 
         @Override
         protected void onPostExecute(Object o) {
-            if(o == null) {
-                new PostTask(mContact).execute();
+            switch(next) {
+                case POST_OR_UPDATE:
+                    if(o == null) {
+                        new PostTask(mContact).execute();
+                    }
+                    else {
+                        new UpdateTask((String) o, mContact).execute();
+                    }
+                    break;
+                case DELETE:
+                    new DeleteTask((String) o).execute();
+                    break;
             }
-            else {
-                new UpdateTask((String) o, mContact).execute();
-            }
+
         }
     }
 
@@ -407,7 +451,8 @@ public class TabFragment1 extends Fragment {
                 if(code != UPDATE_SUCCESS) {
                     Toast.makeText(getActivity(), "error: UpdateTask with errorcode" + code, Toast.LENGTH_SHORT).show();
                 } else {
-                    synchronizeWithServer();
+                    updateCounter++;
+                    if(updateCounter == updateMax) synchronizeWithServer();
                 }
             }
         }
@@ -471,10 +516,66 @@ public class TabFragment1 extends Fragment {
         @Override
         protected void onPostExecute(Object o) {
             if((int) o == 1) {
-                synchronizeWithServer();
+                updateCounter++;
+                if(updateCounter == updateMax) synchronizeWithServer();
             }
             else {
                 Toast.makeText(getActivity(), "error : PostTask", Toast.LENGTH_SHORT).show();
+            }
+        }
+    }
+
+    private class DeleteTask extends AsyncTask {
+
+        private String id;
+        private final int SUCCESS = 1;
+        private final int DATABASE_FAILURE = 2;
+        private final int EXCEPTION_OCCURED = 3;
+
+        public DeleteTask(String id) {
+            this.id = id;
+        }
+
+        @Override
+        protected Object doInBackground(Object[] objects) {
+
+            String jsonResponse = "";
+
+            try {
+
+                HttpClient httpClient = new DefaultHttpClient();
+                String urlString = "http://13.125.74.66:8082/api/contacts/" + id;
+                URI url = new URI(urlString);
+
+                HttpDelete httpDelete = new HttpDelete(url);
+                HttpResponse response = httpClient.execute(httpDelete);
+
+                if(response.getEntity() == null) return SUCCESS;
+                else return DATABASE_FAILURE;
+
+            } catch (IOException e) {
+                getActivity().runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        Toast.makeText(getActivity(), "서버 DB에 접속할 수 없습니다. 인터넷 연결을 확인해주세요.", Toast.LENGTH_SHORT).show();
+                    }
+                });
+                e.printStackTrace();
+            } catch (URISyntaxException e) {
+                e.printStackTrace();
+            }
+
+            return EXCEPTION_OCCURED;
+
+        }
+
+        @Override
+        protected void onPostExecute(Object o) {
+            int code = (int) o;
+            if(code != SUCCESS) {
+                Toast.makeText(getActivity(), "error: UpdateTask with errorcode" + code, Toast.LENGTH_SHORT).show();
+            } else {
+                synchronizeWithServer();
             }
         }
     }
@@ -536,7 +637,9 @@ public class TabFragment1 extends Fragment {
             name_list = new ArrayList<>(contact_list.keySet());
             adapter = new CustomViewAdapter(getActivity(), R.layout.listview_item, name_list);
             listView.setAdapter(adapter);
-            if((Boolean) o) Toast.makeText(getActivity(), "동기화 완료", Toast.LENGTH_SHORT).show();
+            if((Boolean) o) {
+                Toast.makeText(getActivity(), "갱신 완료", Toast.LENGTH_SHORT).show();
+            }
             else Toast.makeText(getActivity(), "error: SynchronizeTask", Toast.LENGTH_SHORT).show();
         }
     }
