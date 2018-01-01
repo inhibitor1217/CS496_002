@@ -68,7 +68,7 @@ public class TabFragment1 extends Fragment {
 
     private CustomViewAdapter adapter;
 
-    private int updateCounter, updateMax;
+    private static int UPDATE_COUNTER, UPDATE_MAX;
 
     @Nullable
     @Override
@@ -86,13 +86,7 @@ public class TabFragment1 extends Fragment {
                 // retrieve contact information from local device
                 HashMap<String, Contact> localContact = readContactFromLocal();
 
-                updateCounter = 0;
-                updateMax = localContact.size();
-
-                // upload information to server and synchronize
-                for(Map.Entry<String, Contact> entry: localContact.entrySet()) {
-                    updateContactToServer(entry.getKey(), entry.getValue());
-                }
+                new CheckConnectionAndContinueTask(localContact).execute();
 
             }
         });
@@ -293,6 +287,48 @@ public class TabFragment1 extends Fragment {
         }
     }
 
+    private class CheckConnectionAndContinueTask extends AsyncTask {
+
+        private HashMap<String, Contact> mHashMap;
+
+        public CheckConnectionAndContinueTask(HashMap<String, Contact> mHashMap) {
+            this.mHashMap = mHashMap;
+        }
+
+        @Override
+        protected Object doInBackground(Object[] objects) {
+            String jsonResponse = "";
+            try {
+                HttpClient httpClient = new DefaultHttpClient();
+                String urlString = "http://13.125.74.66:8082/api/contacts/";
+                URI url = new URI(urlString);
+                HttpGet httpGet = new HttpGet(url);
+                HttpResponse response = httpClient.execute(httpGet);
+                return true;
+            } catch (IOException e) {
+                e.printStackTrace();
+            } catch (URISyntaxException e) {
+                e.printStackTrace();
+            }
+            return false;
+        }
+
+        @Override
+        protected void onPostExecute(Object o) {
+            boolean chkConnection = (Boolean) o;
+            if(chkConnection) {
+                UPDATE_COUNTER = 0;
+                UPDATE_MAX = mHashMap.size();
+                // upload information to server and synchronize
+                for (Map.Entry<String, Contact> entry : mHashMap.entrySet()) {
+                    updateContactToServer(entry.getKey(), entry.getValue());
+                }
+            } else {
+                Toast.makeText(getActivity(), "서버 DB에 접속할 수 없습니다. 인터넷 연결을 확인해주세요.", Toast.LENGTH_SHORT).show();
+            }
+        }
+    }
+
     private class FindByNameAndContinueTask extends AsyncTask {
 
         private String mName;
@@ -445,14 +481,14 @@ public class TabFragment1 extends Fragment {
         @Override
         protected void onPostExecute(Object o) {
             if(o == null) {
-                Toast.makeText(getActivity(), "error: UpdateTask", Toast.LENGTH_SHORT).show();
+                // Toast.makeText(getActivity(), "error: UpdateTask", Toast.LENGTH_SHORT).show();
             } else {
                 int code = (int) o;
                 if(code != UPDATE_SUCCESS) {
-                    Toast.makeText(getActivity(), "error: UpdateTask with errorcode" + code, Toast.LENGTH_SHORT).show();
+                    // Toast.makeText(getActivity(), "error: UpdateTask with errorcode" + code, Toast.LENGTH_SHORT).show();
                 } else {
-                    updateCounter++;
-                    if(updateCounter == updateMax) synchronizeWithServer();
+                    UPDATE_COUNTER++;
+                    if(UPDATE_COUNTER == UPDATE_MAX) synchronizeWithServer();
                 }
             }
         }
@@ -516,11 +552,11 @@ public class TabFragment1 extends Fragment {
         @Override
         protected void onPostExecute(Object o) {
             if((int) o == 1) {
-                updateCounter++;
-                if(updateCounter == updateMax) synchronizeWithServer();
+                UPDATE_COUNTER++;
+                if(UPDATE_COUNTER == UPDATE_MAX) synchronizeWithServer();
             }
             else {
-                Toast.makeText(getActivity(), "error : PostTask", Toast.LENGTH_SHORT).show();
+                // Toast.makeText(getActivity(), "error : PostTask", Toast.LENGTH_SHORT).show();
             }
         }
     }
@@ -573,7 +609,7 @@ public class TabFragment1 extends Fragment {
         protected void onPostExecute(Object o) {
             int code = (int) o;
             if(code != SUCCESS) {
-                Toast.makeText(getActivity(), "error: UpdateTask with errorcode" + code, Toast.LENGTH_SHORT).show();
+                // Toast.makeText(getActivity(), "error: UpdateTask with errorcode" + code, Toast.LENGTH_SHORT).show();
             } else {
                 synchronizeWithServer();
             }
@@ -615,12 +651,6 @@ public class TabFragment1 extends Fragment {
                 return true;
 
             } catch (IOException e) {
-                getActivity().runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        Toast.makeText(getActivity(), "서버 DB에 접속할 수 없습니다. 인터넷 연결을 확인해주세요.", Toast.LENGTH_SHORT).show();
-                    }
-                });
                 e.printStackTrace();
             } catch (URISyntaxException e) {
                 e.printStackTrace();
@@ -640,7 +670,7 @@ public class TabFragment1 extends Fragment {
             if((Boolean) o) {
                 Toast.makeText(getActivity(), "갱신 완료", Toast.LENGTH_SHORT).show();
             }
-            else Toast.makeText(getActivity(), "error: SynchronizeTask", Toast.LENGTH_SHORT).show();
+            else Toast.makeText(getActivity(), "서버 DB에 접속할 수 없습니다. 인터넷 연결을 확인해주세요.", Toast.LENGTH_SHORT).show();
         }
     }
 

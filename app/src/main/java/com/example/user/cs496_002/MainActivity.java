@@ -34,9 +34,11 @@ public class MainActivity extends AppCompatActivity {
 
     private final int MY_PERMISSIONS_REQUEST_INTERNET = 42;
     private final int MY_PERMISSIONS_REQUEST_READ_CONTACTS = 45;
+    private final int MY_PERMISSIONS_REQUEST_READ_EXTERNAL_STORAGE = 48;
 
     public static boolean INTERNET_ALLOWED = false;
     public static boolean READ_CONTACTS_ALLOWED = false;
+    public static boolean READ_EXTERNAL_STORAGE_ALLOWED = false;
 
     @RequiresApi(api = Build.VERSION_CODES.M)
     @Override
@@ -57,6 +59,13 @@ public class MainActivity extends AppCompatActivity {
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.READ_CONTACTS}, MY_PERMISSIONS_REQUEST_READ_CONTACTS);
         } else {
             READ_CONTACTS_ALLOWED = true;
+        }
+
+        // request permission for reading storage
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.READ_EXTERNAL_STORAGE}, MY_PERMISSIONS_REQUEST_READ_EXTERNAL_STORAGE);
+        } else {
+            READ_EXTERNAL_STORAGE_ALLOWED = true;
         }
 
         viewPager = (ViewPager) findViewById(R.id.pager);
@@ -92,6 +101,13 @@ public class MainActivity extends AppCompatActivity {
                     Toast.makeText(this, "서버 접속을 위해 [설정]>[애플리케이션 관리]에서 연락처 접근 권한을 활성화 해주세요.", Toast.LENGTH_SHORT).show();
                 }
                 break;
+            case MY_PERMISSIONS_REQUEST_READ_EXTERNAL_STORAGE:
+                if(grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    READ_EXTERNAL_STORAGE_ALLOWED = true;
+                }
+                else {
+                    Toast.makeText(this, "서버 접속을 위해 [설정]>[애플리케이션 관리]에서 저장소 접근 권한을 활성화 해주세요.", Toast.LENGTH_SHORT).show();
+                }
             default:
         }
     }
