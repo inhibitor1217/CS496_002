@@ -8,10 +8,10 @@ public class Contact {
 
     public Contact(String name) {
         this.name = name;
-        this.phone = null;
-        this.email = null;
-        this.facebook = null;
-        this.profileImage = null;
+        this.phone = "";
+        this.email = "";
+        this.facebook = "";
+        this.profileImage = "";
     }
 
     public Contact(String name, String phone, String email, String facebook, String profileImage) {

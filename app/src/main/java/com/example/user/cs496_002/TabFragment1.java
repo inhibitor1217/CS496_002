@@ -3,14 +3,17 @@ package com.example.user.cs496_002;
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
+import android.database.Cursor;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.provider.ContactsContract;
 import android.support.annotation.Nullable;
 import android.support.design.widget.FloatingActionButton;
 import android.support.v4.app.Fragment;
 import android.text.Editable;
 import android.text.InputType;
 import android.text.TextWatcher;
+import android.util.Log;
 import android.util.Pair;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
@@ -25,9 +28,14 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import org.apache.http.HttpResponse;
+import org.apache.http.NameValuePair;
 import org.apache.http.client.HttpClient;
+import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.client.methods.HttpPut;
 import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.protocol.HTTP;
 import org.apache.http.util.EntityUtils;
 import org.json.JSONArray;
@@ -41,6 +49,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 public class TabFragment1 extends Fragment {
 
@@ -68,21 +78,21 @@ public class TabFragment1 extends Fragment {
             @Override
             public void onClick(View view) {
                 // TODO
-                // retrieve contact information from local device
+                // (done) retrieve contact information from local device
+                HashMap<String, Contact> localContact = readContactFromLocal();
 
-                // upload information to server
-                //   - new contacts should be added using POST query
-                //   - existing contacts should be updated using PUT query
+                // (done) upload information to server and synchronize
+                for(Map.Entry<String, Contact> entry: localContact.entrySet()) {
+                    updateToServer(entry.getKey(), entry.getValue());
+                }
 
-                // (done) synchronize with server
-                synchronizeWithServer();
             }
         });
 
         facebookButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                // TODO\
+                // TODO
                 // facebook login
 
                 // retrieve contact information from user's facebook account
@@ -181,11 +191,291 @@ public class TabFragment1 extends Fragment {
 
     }
 
+    public HashMap<String, Contact> readContactFromLocal() {
+
+        HashMap<String, Contact> ret = new HashMap<>();
+
+        if(MainActivity.READ_CONTACTS_ALLOWED) {
+
+            Cursor c = getActivity().getContentResolver().query(
+                    ContactsContract.Contacts.CONTENT_URI,
+                    null, null, null,
+                    ContactsContract.Contacts.DISPLAY_NAME_PRIMARY + " asc");
+
+            while (c.moveToNext()) {
+
+                String id = c.getString(c.getColumnIndex(ContactsContract.Contacts._ID));
+                String name = c.getString(c.getColumnIndex(ContactsContract.Contacts.DISPLAY_NAME_PRIMARY));
+
+                Contact contact = new Contact(name);
+
+                Cursor cursorPhone = getActivity().getContentResolver().query(
+                        ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
+                        null,
+                        ContactsContract.CommonDataKinds.Phone.CONTACT_ID + " = " + id,
+                        null, null);
+
+                if (cursorPhone.moveToFirst()) {
+                    contact.setPhone(cursorPhone.getString(cursorPhone.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER)));
+                }
+
+                Cursor cursorEmail = getActivity().getContentResolver().query(
+                        ContactsContract.CommonDataKinds.Email.CONTENT_URI,
+                        null,
+                        ContactsContract.CommonDataKinds.Phone.CONTACT_ID + " = " + id,
+                        null, null);
+
+                if (cursorEmail.moveToFirst()) {
+                    contact.setEmail(cursorEmail.getString(cursorEmail.getColumnIndex(ContactsContract.CommonDataKinds.Email.ADDRESS)));
+                }
+
+                ret.put(name, contact);
+
+                cursorPhone.close();
+                cursorEmail.close();
+
+            }
+
+        } else {
+            Toast.makeText(getActivity(), "연락처 접근을 위해 [설정]>[애플리케이션 관리]에서 주소록 접근 권한을 활성화 해주세요.", Toast.LENGTH_SHORT).show();
+        }
+
+        return ret;
+
+    }
+
+    public void updateToServer(String name, Contact contact) {
+
+        if(MainActivity.INTERNET_ALLOWED) {
+            new CheckNameAndUpdateTask(name, contact).execute();
+        } else {
+            Toast.makeText(getActivity(), "서버 접속을 위해 [설정]>[애플리케이션 관리]에서 인터넷 접속 권한을 활성화 해주세요.", Toast.LENGTH_SHORT).show();
+        }
+
+    }
+
     public void synchronizeWithServer() {
         if (MainActivity.INTERNET_ALLOWED) {
             new SynchronizeTask().execute();
         } else {
-            Toast.makeText(getActivity(), "서버 접속을 위해 [설정]>[애플리케이션 관리]에서 관련 권한을 활성화 해주세요.", Toast.LENGTH_SHORT).show();
+            Toast.makeText(getActivity(), "서버 접속을 위해 [설정]>[애플리케이션 관리]에서 인터넷 접속 권한을 활성화 해주세요.", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private class CheckNameAndUpdateTask extends AsyncTask {
+
+        private String mName;
+        private Contact mContact;
+
+        public CheckNameAndUpdateTask(String name, Contact contact) {
+            this.mName = name;
+            this.mContact = contact;
+        }
+
+        @Override
+        protected Object doInBackground(Object[] objects) {
+
+            String jsonResponse = "";
+
+            try {
+
+                HttpClient httpClient = new DefaultHttpClient();
+                String urlString = "http://13.125.74.66:8082/api/contacts/name/" + mName;
+                URI url = new URI(urlString);
+
+                HttpGet httpGet = new HttpGet(url);
+                HttpResponse response = httpClient.execute(httpGet);
+                jsonResponse = EntityUtils.toString(response.getEntity(), HTTP.UTF_8);
+
+                if(jsonResponse.contains("contact not found")) {
+                    return null;
+                } else {
+
+                    JSONArray arr = new JSONArray(jsonResponse);
+
+                    // TODO
+                    // for now, we retrieve first contact information with given name.
+                    // we may improve this (i.e. check similarity)
+
+                    return arr.getJSONObject(0).getString("_id");
+
+                }
+
+            } catch (IOException e) {
+                getActivity().runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        Toast.makeText(getActivity(), "서버 DB에 접속할 수 없습니다. 인터넷 연결을 확인해주세요.", Toast.LENGTH_SHORT).show();
+                    }
+                });
+                e.printStackTrace();
+            } catch (URISyntaxException e) {
+                e.printStackTrace();
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
+
+            return null;
+
+        }
+
+        @Override
+        protected void onPostExecute(Object o) {
+            if(o == null) {
+                new PostTask(mContact).execute();
+            }
+            else {
+                new UpdateTask((String) o, mContact).execute();
+            }
+        }
+    }
+
+    private class UpdateTask extends AsyncTask {
+
+        private String id;
+        private Contact mContact;
+
+        private final int UPDATE_SUCCESS = 1;
+        private final int DATABASE_FAILURE = 2;
+        private final int CONTACT_NOT_FOUND = 3;
+        private final int FAILED_TO_UPDATE = 4;
+
+        public UpdateTask(String id, Contact contact) {
+            this.id = id;
+            this.mContact = contact;
+        }
+
+        @Override
+        protected Object doInBackground(Object[] objects) {
+
+            String jsonResponse = "";
+
+            try {
+
+                HttpClient httpClient = new DefaultHttpClient();
+                String urlString = "http://13.125.74.66:8082/api/contacts/" + id;
+                URI url = new URI(urlString);
+
+                HttpPut httpPut = new HttpPut(url);
+
+                List<NameValuePair> params = new ArrayList<>();
+                if(mContact.name.equals(""))         params.add(new BasicNameValuePair("name"        , mContact.name));
+                if(mContact.phone.equals(""))        params.add(new BasicNameValuePair("phone"       , mContact.phone));
+                if(mContact.email.equals(""))        params.add(new BasicNameValuePair("email"       , mContact.email));
+                if(mContact.facebook.equals(""))     params.add(new BasicNameValuePair("facebook"    , mContact.facebook));
+                if(mContact.profileImage.equals("")) params.add(new BasicNameValuePair("profileImage", mContact.profileImage));
+                UrlEncodedFormEntity ent = new UrlEncodedFormEntity(params, HTTP.UTF_8);
+                httpPut.setEntity(ent);
+
+                HttpResponse response = httpClient.execute(httpPut);
+                jsonResponse = EntityUtils.toString(response.getEntity(), HTTP.UTF_8);
+
+                if(jsonResponse.contains("update successful")) {
+                    return UPDATE_SUCCESS;
+                } else if(jsonResponse.contains("database failure")) {
+                    return DATABASE_FAILURE;
+                } else if(jsonResponse.contains("contact not found")) {
+                    return CONTACT_NOT_FOUND;
+                } else if(jsonResponse.contains("failed to update")) {
+                    return FAILED_TO_UPDATE;
+                } else {
+                    return null;
+                }
+
+            } catch (IOException e) {
+                getActivity().runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        Toast.makeText(getActivity(), "서버 DB에 접속할 수 없습니다. 인터넷 연결을 확인해주세요.", Toast.LENGTH_SHORT).show();
+                    }
+                });
+                e.printStackTrace();
+            } catch (URISyntaxException e) {
+                e.printStackTrace();
+            }
+
+            return null;
+
+        }
+
+        @Override
+        protected void onPostExecute(Object o) {
+            if(o == null) {
+                Toast.makeText(getActivity(), "error: UpdateTask", Toast.LENGTH_SHORT).show();
+            } else {
+                int code = (int) o;
+                if(code != UPDATE_SUCCESS) {
+                    Toast.makeText(getActivity(), "error: UpdateTask with errorcode" + code, Toast.LENGTH_SHORT).show();
+                } else {
+                    synchronizeWithServer();
+                }
+            }
+        }
+    }
+
+    private class PostTask extends AsyncTask {
+
+        private Contact mContact;
+
+        public PostTask(Contact mContact) {
+            this.mContact = mContact;
+        }
+
+        @Override
+        protected Object doInBackground(Object[] objects) {
+
+            String jsonResponse = "";
+
+            try {
+
+                HttpClient httpClient = new DefaultHttpClient();
+                String urlString = "http://13.125.74.66:8082/api/contacts/";
+                URI url = new URI(urlString);
+
+                HttpPost httpPost = new HttpPost(url);
+
+                // include parameters
+                List<NameValuePair> params = new ArrayList<>();
+                params.add(new BasicNameValuePair("name"        , mContact.name));
+                params.add(new BasicNameValuePair("phone"       , mContact.phone));
+                params.add(new BasicNameValuePair("email"       , mContact.email));
+                params.add(new BasicNameValuePair("facebook"    , mContact.facebook));
+                params.add(new BasicNameValuePair("profileImage", mContact.profileImage));
+                UrlEncodedFormEntity ent = new UrlEncodedFormEntity(params, HTTP.UTF_8);
+                httpPost.setEntity(ent);
+
+                HttpResponse response = httpClient.execute(httpPost);
+                jsonResponse = EntityUtils.toString(response.getEntity(), HTTP.UTF_8);
+
+                // parse response to verify success
+                JSONObject obj = new JSONObject(jsonResponse);
+                return obj.getInt("result");
+
+            } catch (IOException e) {
+                getActivity().runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        Toast.makeText(getActivity(), "서버 DB에 접속할 수 없습니다. 인터넷 연결을 확인해주세요.", Toast.LENGTH_SHORT).show();
+                    }
+                });
+                e.printStackTrace();
+            } catch (URISyntaxException e) {
+                e.printStackTrace();
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
+
+            return 0;
+
+        }
+        @Override
+        protected void onPostExecute(Object o) {
+            if((int) o == 1) {
+                synchronizeWithServer();
+            }
+            else {
+                Toast.makeText(getActivity(), "error : PostTask", Toast.LENGTH_SHORT).show();
+            }
         }
     }
 
@@ -196,6 +486,7 @@ public class TabFragment1 extends Fragment {
 
             contact_list = new HashMap<String, Contact>();
             String jsonResponse = "";
+
             try {
 
                 HttpClient httpClient = new DefaultHttpClient();
@@ -235,6 +526,7 @@ public class TabFragment1 extends Fragment {
             } catch (JSONException e) {
                 e.printStackTrace();
             }
+
             return false;
 
         }
@@ -244,7 +536,8 @@ public class TabFragment1 extends Fragment {
             name_list = new ArrayList<>(contact_list.keySet());
             adapter = new CustomViewAdapter(getActivity(), R.layout.listview_item, name_list);
             listView.setAdapter(adapter);
-            if((Boolean) o) Toast.makeText(getActivity(), "갱신 완료!", Toast.LENGTH_SHORT).show();
+            if((Boolean) o) Toast.makeText(getActivity(), "동기화 완료", Toast.LENGTH_SHORT).show();
+            else Toast.makeText(getActivity(), "error: SynchronizeTask", Toast.LENGTH_SHORT).show();
         }
     }
 
