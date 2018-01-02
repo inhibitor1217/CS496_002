@@ -35,10 +35,12 @@ public class MainActivity extends AppCompatActivity {
     private final int MY_PERMISSIONS_REQUEST_INTERNET = 42;
     private final int MY_PERMISSIONS_REQUEST_READ_CONTACTS = 45;
     private final int MY_PERMISSIONS_REQUEST_READ_EXTERNAL_STORAGE = 48;
+    private final int MY_PERMISSIONS_REQUEST_WRITE_EXTERNAL_STORAGE = 57;
 
     public static boolean INTERNET_ALLOWED = false;
     public static boolean READ_CONTACTS_ALLOWED = false;
     public static boolean READ_EXTERNAL_STORAGE_ALLOWED = false;
+    public static boolean WRITE_EXTERNAL_STORAGE_ALLOWED = false;
 
     @RequiresApi(api = Build.VERSION_CODES.M)
     @Override
@@ -66,6 +68,13 @@ public class MainActivity extends AppCompatActivity {
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.READ_EXTERNAL_STORAGE}, MY_PERMISSIONS_REQUEST_READ_EXTERNAL_STORAGE);
         } else {
             READ_EXTERNAL_STORAGE_ALLOWED = true;
+        }
+
+        // request permission for writing storage
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, MY_PERMISSIONS_REQUEST_WRITE_EXTERNAL_STORAGE);
+        } else {
+            WRITE_EXTERNAL_STORAGE_ALLOWED = true;
         }
 
         viewPager = (ViewPager) findViewById(R.id.pager);
@@ -108,7 +117,17 @@ public class MainActivity extends AppCompatActivity {
                 else {
                     Toast.makeText(this, "서버 접속을 위해 [설정]>[애플리케이션 관리]에서 저장소 접근 권한을 활성화 해주세요.", Toast.LENGTH_SHORT).show();
                 }
+                break;
+            case MY_PERMISSIONS_REQUEST_WRITE_EXTERNAL_STORAGE:
+                if(grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    WRITE_EXTERNAL_STORAGE_ALLOWED = true;
+                }
+                else {
+                    Toast.makeText(this, "서버 접속을 위해 [설정]>[애플리케이션 관리]에서 저장소 접근 권한을 활성화 해주세요.", Toast.LENGTH_SHORT).show();
+                }
+                break;
             default:
         }
     }
+
 }

@@ -1,7 +1,5 @@
 package com.example.user.cs496_002;
 
-import android.graphics.Bitmap;
-
 public class Contact {
 
     public String name, phone, email, facebook, profileImage;
