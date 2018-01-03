@@ -36,11 +36,13 @@ public class MainActivity extends AppCompatActivity {
     private final int MY_PERMISSIONS_REQUEST_READ_CONTACTS = 45;
     private final int MY_PERMISSIONS_REQUEST_READ_EXTERNAL_STORAGE = 48;
     private final int MY_PERMISSIONS_REQUEST_WRITE_EXTERNAL_STORAGE = 57;
+    private final int MY_PERMISSIONS_REQUEST_CAMERA = 18;
 
     public static boolean INTERNET_ALLOWED = false;
     public static boolean READ_CONTACTS_ALLOWED = false;
     public static boolean READ_EXTERNAL_STORAGE_ALLOWED = false;
     public static boolean WRITE_EXTERNAL_STORAGE_ALLOWED = false;
+    public static boolean CAMERA_ALLOWED = false;
 
     @RequiresApi(api = Build.VERSION_CODES.M)
     @Override
@@ -77,12 +79,19 @@ public class MainActivity extends AppCompatActivity {
             WRITE_EXTERNAL_STORAGE_ALLOWED = true;
         }
 
+        // request permission for camera usage
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.CAMERA}, MY_PERMISSIONS_REQUEST_CAMERA);
+        } else {
+            CAMERA_ALLOWED = true;
+        }
+
         viewPager = (ViewPager) findViewById(R.id.pager);
         TabPagerAdapter adapter = new TabPagerAdapter(getSupportFragmentManager());
 
         adapter.addFragment(new TabFragment1(), "연락처");
         adapter.addFragment(new TabFragment2(), "사진첩");
-        adapter.addFragment(new TabFragment3(), "TAB C");
+        adapter.addFragment(new TabFragment3(), "웹캠");
 
         viewPager.setAdapter(adapter);
 
@@ -96,11 +105,11 @@ public class MainActivity extends AppCompatActivity {
         switch(requestCode) {
             case MY_PERMISSIONS_REQUEST_INTERNET:
                 if(grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                    INTERNET_ALLOWED = true;
-                }
-                else {
-                    Toast.makeText(this, "서버 접속을 위해 [설정]>[애플리케이션 관리]에서 인터넷 접속 권한을 활성화 해주세요.", Toast.LENGTH_SHORT).show();
-                }
+                INTERNET_ALLOWED = true;
+            }
+            else {
+                Toast.makeText(this, "서버 접속을 위해 [설정]>[애플리케이션 관리]에서 인터넷 접속 권한을 활성화 해주세요.", Toast.LENGTH_SHORT).show();
+            }
                 break;
             case MY_PERMISSIONS_REQUEST_READ_CONTACTS:
                 if(grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
@@ -121,6 +130,14 @@ public class MainActivity extends AppCompatActivity {
             case MY_PERMISSIONS_REQUEST_WRITE_EXTERNAL_STORAGE:
                 if(grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                     WRITE_EXTERNAL_STORAGE_ALLOWED = true;
+                }
+                else {
+                    Toast.makeText(this, "서버 접속을 위해 [설정]>[애플리케이션 관리]에서 저장소 접근 권한을 활성화 해주세요.", Toast.LENGTH_SHORT).show();
+                }
+                break;
+            case MY_PERMISSIONS_REQUEST_CAMERA:
+                if(grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    CAMERA_ALLOWED = true;
                 }
                 else {
                     Toast.makeText(this, "서버 접속을 위해 [설정]>[애플리케이션 관리]에서 저장소 접근 권한을 활성화 해주세요.", Toast.LENGTH_SHORT).show();

@@ -122,11 +122,12 @@ public class TabFragment1 extends Fragment {
                 } else {
                     callbackManager = CallbackManager.Factory.create();
                     LoginManager.getInstance().logInWithReadPermissions(TabFragment1.this, Arrays.asList("public_profile", "user_friends"));
-                    // Log.d("Tag", "myaong");
+                    Log.d("Tag", "myaong");
                     LoginManager.getInstance().registerCallback(callbackManager, new FacebookCallback<LoginResult>() {
 
                         @Override
                         public void onSuccess(LoginResult loginResult) {
+                            Log.d("Tag", "myaong2");
                             GraphRequest request = new GraphRequest(loginResult.getAccessToken(),
                                     "/me/taggable_friends",
                                     null,
@@ -154,12 +155,12 @@ public class TabFragment1 extends Fragment {
 
                         @Override
                         public void onCancel() {
-                            // Log.d("Tag", "실패");
+                            Log.d("Tag", "실패");
                         }
 
                         @Override
                         public void onError(FacebookException error) {
-                            // Log.d("Tag", "error");
+                            Log.d("Tag", "error");
                         }
                     });
                 }
@@ -277,7 +278,7 @@ public class TabFragment1 extends Fragment {
     public void onActivityResult(int requestCode, int resultCode, Intent data){
         super.onActivityResult(requestCode,resultCode,data);
         callbackManager.onActivityResult(requestCode,resultCode,data);
-        // Log.d("myaong", permissionNeeds.toString());
+        Log.d("Tag", "onActivityResult");
         synchronizeWithServer();
     }
 
@@ -757,6 +758,7 @@ public class TabFragment1 extends Fragment {
             listView.setAdapter(adapter);
             if((Boolean) o) {
                 Toast.makeText(getActivity(), "갱신 완료", Toast.LENGTH_SHORT).show();
+                Log.d("Tag","갱신");
             }
             else Toast.makeText(getActivity(), "서버 DB에 접속할 수 없습니다. 인터넷 연결을 확인해주세요.", Toast.LENGTH_SHORT).show();
         }

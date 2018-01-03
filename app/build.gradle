@@ -28,4 +28,5 @@ dependencies {
     androidTestImplementation 'com.android.support.test.espresso:espresso-core:3.0.1'
     compile 'com.android.support:design:26.1.0'
     implementation 'com.facebook.android:facebook-android-sdk:[4,5)'
+    compile 'io.socket:socket.io-client:1.0.0'
 }
