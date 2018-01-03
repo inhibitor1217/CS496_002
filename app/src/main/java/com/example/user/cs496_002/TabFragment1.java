@@ -5,6 +5,9 @@ import android.app.AlertDialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager;
+import android.content.pm.Signature;
 import android.database.Cursor;
 import android.os.AsyncTask;
 import android.os.Bundle;
@@ -15,6 +18,7 @@ import android.support.v4.app.Fragment;
 import android.text.Editable;
 import android.text.InputType;
 import android.text.TextWatcher;
+import android.util.Base64;
 import android.util.Log;
 import android.util.Pair;
 import android.view.KeyEvent;
@@ -28,6 +32,17 @@ import android.widget.EditText;
 import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
+
+import com.facebook.AccessToken;
+import com.facebook.CallbackManager;
+import com.facebook.FacebookCallback;
+import com.facebook.FacebookException;
+import com.facebook.FacebookSdk;
+import com.facebook.GraphRequest;
+import com.facebook.GraphResponse;
+import com.facebook.HttpMethod;
+import com.facebook.login.LoginManager;
+import com.facebook.login.LoginResult;
 
 import org.apache.http.HttpResponse;
 import org.apache.http.NameValuePair;
@@ -48,7 +63,10 @@ import org.json.JSONObject;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -69,6 +87,8 @@ public class TabFragment1 extends Fragment {
     private CustomViewAdapter adapter;
 
     private static int UPDATE_COUNTER, UPDATE_MAX;
+
+    private CallbackManager callbackManager;
 
     @Nullable
     @Override
@@ -92,19 +112,57 @@ public class TabFragment1 extends Fragment {
         });
 
         facebookButton.setOnClickListener(new View.OnClickListener() {
+
             @Override
             public void onClick(View view) {
-                // TODO
-                // facebook login
 
-                // retrieve contact information from user's facebook account
+                if (AccessToken.getCurrentAccessToken() != null) {
+                    Log.d("Tag", "Logout");
+                    LoginManager.getInstance().logOut();
+                } else {
+                    callbackManager = CallbackManager.Factory.create();
+                    LoginManager.getInstance().logInWithReadPermissions(TabFragment1.this, Arrays.asList("public_profile", "user_friends"));
+                    // Log.d("Tag", "myaong");
+                    LoginManager.getInstance().registerCallback(callbackManager, new FacebookCallback<LoginResult>() {
 
-                // upload information to server
-                //   - new contacts should be added using POST query
-                //   - existing contacts should be updated using PUT query
+                        @Override
+                        public void onSuccess(LoginResult loginResult) {
+                            GraphRequest request = new GraphRequest(loginResult.getAccessToken(),
+                                    "/me/taggable_friends",
+                                    null,
+                                    HttpMethod.GET,
+                                    new GraphRequest.Callback() {
+                                        @Override
+                                        public void onCompleted(GraphResponse response) {
+                                            // Log.d("response", response.toString());
+                                            JSONObject object = response.getJSONObject();
+                                            getData(object);
+                                            GraphRequest nextReq = response.getRequestForPagedResults(GraphResponse.PagingDirection.NEXT);
+                                            if(nextReq != null){
+                                                nextReq.setCallback(this);
+                                                nextReq.executeAsync();
+                                            }
+                                        }
+                                    });
 
-                // (done) synchronize with server
-                synchronizeWithServer();
+                            Bundle paramaters = new Bundle();
+                            paramaters.putString("fields", "name");
+                            request.setParameters(paramaters);
+                            request.executeAsync();
+
+                        }
+
+                        @Override
+                        public void onCancel() {
+                            // Log.d("Tag", "실패");
+                        }
+
+                        @Override
+                        public void onError(FacebookException error) {
+                            // Log.d("Tag", "error");
+                        }
+                    });
+                }
             }
         });
 
@@ -216,6 +274,13 @@ public class TabFragment1 extends Fragment {
 
     }
 
+    public void onActivityResult(int requestCode, int resultCode, Intent data){
+        super.onActivityResult(requestCode,resultCode,data);
+        callbackManager.onActivityResult(requestCode,resultCode,data);
+        // Log.d("myaong", permissionNeeds.toString());
+        synchronizeWithServer();
+    }
+
     public HashMap<String, Contact> readContactFromLocal() {
 
         HashMap<String, Contact> ret = new HashMap<>();
@@ -269,9 +334,30 @@ public class TabFragment1 extends Fragment {
 
     }
 
+    private void getData(JSONObject object) {
+
+        try {
+            StringBuilder names = new StringBuilder();
+            JSONArray jsonArrayFriends = object.getJSONArray("data");
+            JSONObject jsonObjectPages = object.getJSONObject("paging");
+
+            UPDATE_COUNTER = 0;
+            UPDATE_MAX = jsonArrayFriends.length();
+            for (int i = 0; i < jsonArrayFriends.length(); i++) {
+                String name = jsonArrayFriends.getJSONObject(i).getString("name");
+                updateContactToServer(name, new Contact(name));
+            }
+
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+
+    }
+
     public void updateContactToServer(String name, Contact contact) {
 
         if(MainActivity.INTERNET_ALLOWED) {
+            name = name.replace(' ', '+');
             new FindByNameAndContinueTask(name, contact, FindByNameAndContinueTask.POST_OR_UPDATE).execute();
         } else {
             Toast.makeText(getActivity(), "서버 접속을 위해 [설정]>[애플리케이션 관리]에서 인터넷 접속 권한을 활성화 해주세요.", Toast.LENGTH_SHORT).show();
@@ -644,6 +730,8 @@ public class TabFragment1 extends Fragment {
                     String obj_email        = arr.getJSONObject(i).getString("email");
                     String obj_facebook     = arr.getJSONObject(i).getString("facebook");
                     String obj_profileImage = arr.getJSONObject(i).getString("profileImage");
+
+                    obj_name = obj_name.replace('+', ' ');
 
                     contact_list.put(obj_name, new Contact(obj_name, obj_phone, obj_email, obj_facebook, obj_profileImage));
 
